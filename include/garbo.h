@@ -119,6 +119,7 @@ int garbo_destroy(garray_t *ga);
 int garbo_sync(garray_t *ga);
 int garbo_get(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
 int garbo_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
+int garbo_distribution(garray_t *ga, int nid, int *lo, int *hi);
 int garbo_access(garray_t *ga, int *lo, int *hi, void **buf, int *ld);
 
 /* number of participating nodes */

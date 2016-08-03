@@ -18,11 +18,7 @@ CFLAGS+=-I../include
 CFLAGS+=-I../src
 
 LDOBJS+=-lpthread
-LDOBJS+=tap.o
 LDOBJS+=../libgarbo.a
-
-TAPSRC=tap.c
-TAPOBJ=tap.o
 
 SRCS=garbotest.c
 OBJS=$(subst .c,.o, $(SRCS))
@@ -36,12 +32,9 @@ endif
 
 all: $(BINS)
 
-$(BINS): $(SRCS) $(TAPOBJ)
+$(BINS): $(SRCS) ../libgarbo.a
 	$(CC) $(CFLAGS) garbotest.c -o garbotest $(LDOBJS)
 
-$(TAPOBJ): $(TAPSRC)
-	$(CC) $(CFLAGS) -c $(TAPSRC)
-
 clean:
-	$(RM) -f $(BINS) $(OBJS) $(TAPOBJ)
+	$(RM) -f $(BINS) $(OBJS)
 
