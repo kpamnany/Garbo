@@ -13,7 +13,7 @@ CC=mpicc
 CFLAGS+=-Wall
 CFLAGS+=-std=c11
 CFLAGS+=-D_GNU_SOURCE
-
+CFLAGS+=-fpic
 CFLAGS+=-I./include
 CFLAGS+=-I./src
 
@@ -26,7 +26,7 @@ else
     CFLAGS+=-O3
 endif
 
-TARGET=libgarbo.a
+TARGET=libgarbo.so
 
 all: $(TARGET)
 
@@ -34,8 +34,7 @@ test: $(TARGET)
 	$(MAKE) -C test
 
 $(TARGET): $(OBJS)
-	$(RM) -f $(TARGET)
-	$(AR) qvs $(TARGET) $(OBJS)
+	$(CC) $(CFLAGS) -shared -o $(TARGET) $(OBJS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
