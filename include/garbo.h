@@ -1,136 +1,118 @@
-/*  garbo -- global array toolbox
- *
- */
+/*  garbo
+
+    global array toolbox and distributed dynamic scheduler
+*/
 
 #ifndef _GARBO_H
 #define _GARBO_H
 
 #include <mpi.h>
 #include <stdint.h>
+#include "util.h"
+#include "garray_debug.h"
+#include "dtree_debug.h"
 
-
-/*  test-and-test-and-set lock macros
- */
-#define lock_init(l)                    \
-    (l) = 0
-
-#define lock_acquire(l)                 \
-    do {                                \
-        while ((l))                     \
-            cpupause();                 \
-    } while (__sync_lock_test_and_set(&(l), 1))
-#define lock_release(l)                 \
-    (l) = 0
-
-
-/*  thread yield and delay
- */
-#if (__MIC__)
-# define cpupause()     _mm_delay_64(100)
-//# define waitcycles(c)  _mm_delay_64((c))
-# define waitcycles(c) {                \
-      uint64_t s=_rdtsc();              \
-      while ((_rdtsc()-s)<(c))          \
-          _mm_delay_64(100);            \
-  }
-#else
-# define cpupause()     _mm_pause()
-# define waitcycles(c) {                \
-      uint64_t s=_rdtsc();              \
-      while ((_rdtsc()-s)<(c))          \
-          _mm_pause();                  \
-  }
-#endif
-
-
-/*  debugging and profiling
- */
-#ifdef DEBUG_GARBO
-#ifndef TRACE_GARBO
-#define TRACE_GARBO        1
-#endif
-#endif
-
-#ifdef TRACE_GARBO
-
-#if TRACE_GARBO == 1
-#define TRACE(g,x...)           \
-    if ((g)->my_rank == 0 || (g)->my_rank == (g)->num_ranks-1)  \
-        fprintf(stderr, x)
-#elif TRACE_GARBO == 2
-#define TRACE(g,x...)           \
-    if ((g)->my_rank < 18 || (g)->my_rank > (g)->num_ranks-19)  \
-        fprintf(stderr, x)
-#elif TRACE_GARBO == 3
-#define TRACE(g,x...)           \
-    fprintf(stderr, x)
-#else
-#define TRACE(g,x...)
-#endif
-
-#else
-
-#define TRACE(x...)
-
-#endif
-
-#ifdef PROFILE_GARBO
-enum {
-    TIME_GET, TIME_PUT, TIME_SYNC, NTIMES
-};
-
-char *times_names[] = {
-    "get", "put", "sync", ""
-};
-
-typedef struct thread_timing_tag {
-    uint64_t last, min, max, total, count;
-} thread_timing_t;
-#endif
-
-
-/* garbo handle, will contain OFI stuff */
+/* garbo handle */
 typedef struct garbo_tag {
     int nnodes, nid;
-
-#ifdef PROFILE_GARBO
-    thread_timing_t     **times;
-#endif
 } garbo_t;
 
 
 /* global array */
 typedef struct garray_tag {
-    garbo_t *g;
-    int ndims, *dims, *chunks, elem_size, nextra_elems, nelems_per_node,
-        nlocal_elems;
-    int8_t *buffer;
-    MPI_Win win;
+    garbo_t     *g;
+    int         ndims, *dims, *chunks, elem_size, nextra_elems, nelems_per_node,
+                nlocal_elems;
+    int8_t      *buffer;
+    MPI_Win     win;
+
+#ifdef PROFILE_GARRAY
+    garray_thread_timing_t **times;
+#endif
 } garray_t;
+
+
+/* dtree */
+typedef struct dtree_tag {
+    garbo_t             *g;
+
+    /* tree structure */
+    int8_t              num_levels, my_level;
+    int                 parent, *children, num_children;
+    double              tot_children;
+
+    /* MPI info */
+    int                 my_rank, num_ranks;
+    int16_t             *children_req_bufs;
+    MPI_Request         parent_req, *children_reqs;
+
+    /* work distribution policy */
+    int16_t             parents_work;
+    double              first, rest;
+    double              *distrib_fractions;
+    int16_t             min_distrib;
+
+    /* work items */
+    int64_t             first_work_item, last_work_item, next_work_item;
+    int64_t volatile    work_lock __attribute((aligned(8)));
+
+    /* for heterogeneous clusters */
+    double              node_mul;
+
+    /* concurrent calls in from how many threads? */
+    int                 num_threads;
+    int                 (*threadid)();
+#ifdef PROFILE_DTREE
+    dtree_thread_timing_t **times;
+#endif
+
+} dtree_t;
 
 
 /* garbo interface
  */
+
 int garbo_init(int ac, char **av, garbo_t **g);
 int garbo_shutdown(garbo_t *g);
-int garbo_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
-        garray_t *ga);
-int garbo_destroy(garray_t *ga);
-int garbo_sync(garray_t *ga);
-int garbo_get(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
-int garbo_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
-int garbo_distribution(garray_t *ga, int nid, int *lo, int *hi);
-int garbo_access(garray_t *ga, int *lo, int *hi, void **buf, int *ld);
 
 /* number of participating nodes */
-int     garbo_nnodes();
+int garbo_nnodes();
 
 /* this node's unique identifier */
-int     garbo_nodeid();
+int garbo_nodeid();
+
+/* global array */
+int garray_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
+        garray_t *ga);
+int garray_destroy(garray_t *ga);
+
+int garray_sync(garray_t *ga);
+
+int garray_get(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
+int garray_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
+
+int garray_distribution(garray_t *ga, int nid, int *lo, int *hi);
+int garray_access(garray_t *ga, int *lo, int *hi, void **buf, int *ld);
+
+/* dtree */
+int dtree_create(garbo_t *g, int fan_out, int64_t num_work_items,
+        int can_parent, int parents_work, double node_mul,
+        int num_threads, int (*threadid)(),
+        double first, double rest, int16_t min_distrib, dtree_t **dt, int *is_parent);
+void dtree_destroy(dtree_t *dt);
+
+/* call to get initial work allocation; before dtree_run() is called */
+int64_t dtree_initwork(dtree_t *dt, int64_t *first_item, int64_t *last_item);
+
+/* get a block of work */
+int64_t dtree_getwork(dtree_t *dt, int64_t *first_item, int64_t *last_item);
+
+/* call from a thread repeatedly until it returns 0 */
+int dtree_run(dtree_t *dt);
 
 /* utility helpers */
 uint64_t rdtsc();
-void     cpu_pause();
+void cpu_pause();
 
 #endif  /* _GARBO_H */
 

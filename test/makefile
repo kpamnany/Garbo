@@ -20,7 +20,7 @@ CFLAGS+=-I../src
 LDOBJS+=-lpthread
 LDOBJS+=../libgarbo.a
 
-SRCS=garbotest.c
+SRCS=garraytest.c dtreetest.c
 OBJS=$(subst .c,.o, $(SRCS))
 BINS=$(subst .c,, $(SRCS))
 
@@ -33,7 +33,8 @@ endif
 all: $(BINS)
 
 $(BINS): $(SRCS) ../libgarbo.a
-	$(CC) $(CFLAGS) garbotest.c -o garbotest $(LDOBJS)
+	$(CC) $(CFLAGS) garraytest.c -o garraytest $(LDOBJS)
+	$(CC) $(CFLAGS) dtreetest.c -o dtreetest $(LDOBJS)
 
 clean:
 	$(RM) -f $(BINS) $(OBJS)

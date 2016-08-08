@@ -18,13 +18,13 @@ int main(int argc, char **argv)
     if (nid == 0)
         printf("garbotest -- %d nodes\n", nnodes);
 
-    garbo_create(g, 1, dim1, sizeof(int), NULL, &ga);
+    garray_create(g, 1, dim1, sizeof(int), NULL, &ga);
 
     lo[0] = hi[0] = nid;
-    garbo_access(&ga, lo, hi, (void **)&val, NULL);
+    garray_access(&ga, lo, hi, (void **)&val, NULL);
     val[0] = nid+1;
 
-    garbo_sync(&ga);
+    garray_sync(&ga);
 
     val = malloc(NUM_ELEMENTS * sizeof(int));
     for (int i = 0;  i < NUM_ELEMENTS;  ++i)
@@ -32,11 +32,11 @@ int main(int argc, char **argv)
 
     lo[0] = hi[0] = (nid + 1) % NUM_ELEMENTS;
     printf("[%d] getting %d-%d\n", nid, lo[0], hi[0]);
-    garbo_get(&ga, lo, hi, val, NULL);
+    garray_get(&ga, lo, hi, val, NULL);
     printf("[%d] got %d\n", nid, val[0]);
 
     free(val);
-    garbo_destroy(&ga);
+    garray_destroy(&ga);
     garbo_shutdown(g);
 
     return 0;

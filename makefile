@@ -1,4 +1,4 @@
-# garbo -- global arrays
+# garbo -- global arrays + dtree
 #
 # makefile
 #
@@ -17,7 +17,7 @@ CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-I./include
 CFLAGS+=-I./src
 
-SRCS=src/garbo.c
+SRCS=src/garbo.c src/garray.c src/dtree.c
 OBJS=$(subst .c,.o, $(SRCS))
 
 ifeq ($(DEBUG),yes)
