@@ -5,7 +5,7 @@
 # 2016.06.01   kiran.pamnany   Initial code
 #
 
-CC=mpicc
+CC=mpiicc
 
 .SUFFIXES: .c .h .o
 .PHONY: clean
@@ -13,6 +13,7 @@ CC=mpicc
 CFLAGS+=-Wall
 CFLAGS+=-std=c11
 CFLAGS+=-D_GNU_SOURCE
+CFLAGS+=-mkl
 CFLAGS+=-I.
 CFLAGS+=-I../include
 CFLAGS+=-I../src
@@ -34,7 +35,7 @@ all: $(BINS)
 
 $(BINS): $(SRCS) ../libgarbo.a
 	$(CC) $(CFLAGS) garraytest.c -o garraytest $(LDOBJS)
-	$(CC) $(CFLAGS) dtreetest.c -o dtreetest $(LDOBJS)
+	$(CC) $(CFLAGS) -fopenmp dtreetest.c -o dtreetest $(LDOBJS)
 
 clean:
 	$(RM) -f $(BINS) $(OBJS)

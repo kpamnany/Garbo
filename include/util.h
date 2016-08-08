@@ -26,15 +26,15 @@
 # define cpupause()     _mm_delay_64(100)
 //# define waitcycles(c)  _mm_delay_64((c))
 # define waitcycles(c) {                \
-      uint64_t s=_rdtsc();              \
-      while ((_rdtsc()-s)<(c))          \
+      uint64_t s=rdtsc();               \
+      while ((rdtsc()-s)<(c))           \
           _mm_delay_64(100);            \
   }
 #else
 # define cpupause()     _mm_pause()
 # define waitcycles(c) {                \
-      uint64_t s=_rdtsc();              \
-      while ((_rdtsc()-s)<(c))          \
+      uint64_t s=rdtsc();               \
+      while ((rdtsc()-s)<(c))           \
           _mm_pause();                  \
   }
 #endif

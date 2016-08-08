@@ -15,8 +15,9 @@
 #include <pthread.h>
 #include <math.h>
 #include <mkl.h>
+#include <immintrin.h>
 
-#include "dtree.h"
+#include "garbo.h"
 
 #ifndef UINT64_MAX
 #define UINT64_MAX      18446744073709551615ULL
@@ -31,9 +32,9 @@ int num_ranks, my_rank;
 
 double get_cpu_mhz()
 {
-    uint64_t t = _rdtsc();
+    uint64_t t = rdtsc();
     sleep(1);
-    return (_rdtsc() - t) * 1.0 / 1e6;
+    return (rdtsc() - t) * 1.0 / 1e6;
 }
 
 
@@ -44,8 +45,6 @@ void usage()
                         "  dtreetest <#items> <mean> <stddev> \n"
                         "            <first> <rest> <mindist> \n"
                         "            <parents_work> [<fanout=2048>]\n");
-    MPI_Finalize();
-    exit(-1);
 }
 
 
@@ -57,15 +56,17 @@ int main(int argc, char **argv)
     double              mean, stddev, first, rest, cpu_mhz = get_cpu_mhz();
     dtree_t             *scheduler;
     int64_t volatile    lock __attribute((aligned(8)));
+    garbo_t             *g;
 
-    uint64_t tentry = _rdtsc();
+    garbo_init(argc, argv, &g);
+    num_ranks = garbo_nnodes();
+    my_rank = garbo_nodeid();
 
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-
-    if (argc < 8  ||  argc > 9)
+    if (argc < 8  ||  argc > 9) {
         usage();
+        garbo_shutdown(g);
+        exit(-1);
+    }
 
     if (my_rank == 0) {
         for (i = 0;  i < argc;  i++)
@@ -149,7 +150,7 @@ int main(int argc, char **argv)
         int upper = strtol(m, NULL, 10);
         for (i = 0;  i < each;  i++) {
             if (ticks[i] > upper)
-                printf("[%04d] ticks[%d] = %llu (was %g)\n", my_rank, i, ticks[i], (double)ticks[i]);
+                printf("[%04d] ticks[%d] = %lu (was %g)\n", my_rank, i, ticks[i], (double)ticks[i]);
         }
     }
 #endif
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
     // start OMP threads
     #pragma omp parallel
     {
-        int tnum = omp_get_thread_num();
+        omp_get_thread_num();
     }
 
     lock_init(lock);
@@ -174,7 +175,7 @@ int main(int argc, char **argv)
     if (my_rank == 0)
         printf("  creating tree...");
 
-    dtree_create(fan_out, num_work_items, can_parent, parents_work,
+    dtree_create(g, fan_out, num_work_items, can_parent, parents_work,
             node_mul, omp_get_max_threads(), omp_get_thread_num,
             first, rest, min_distrib, &scheduler, &is_parent);
 
@@ -188,9 +189,9 @@ int main(int argc, char **argv)
     num_items = dtree_initwork(scheduler, &cur_item, &last_item);
     int run_dtree = dtree_run(scheduler);
 
-    TRACE(scheduler, "[%04d] init: %lld \n", my_rank, num_items);
+    DTREE_TRACE(scheduler, "[%04d] init: %lld \n", my_rank, num_items);
 
-    uint64_t tinit_done = _rdtsc();
+    uint64_t tinit_done = rdtsc();
     uint64_t wi_done = num_items;
 
     #pragma omp parallel
@@ -199,12 +200,12 @@ int main(int argc, char **argv)
 
         // run the Dtree if needed
         if (run_dtree  &&  tnum == omp_get_num_threads() - 1) {
-            TRACE(scheduler, "[%04d] runner thread entering\n", my_rank);
+            DTREE_TRACE(scheduler, "[%04d] runner thread entering\n", my_rank);
 
             while (dtree_run(scheduler))
                 cpupause();
 
-            TRACE(scheduler, "[%04d] runner thread exiting\n", my_rank);
+            DTREE_TRACE(scheduler, "[%04d] runner thread exiting\n", my_rank);
         }
 
         else {
@@ -220,7 +221,7 @@ int main(int argc, char **argv)
                     num_items = dtree_getwork(scheduler, &cur_item, &last_item);
                     wi_done += num_items;
                     lock_release(lock);
-                    //TRACE(scheduler, "[%04d] getwork: %lld \n", my_rank, num_items);
+                    //DTREE_TRACE(scheduler, "[%04d] getwork: %lld \n", my_rank, num_items);
                     continue;
                 }
                 item = cur_item++;
@@ -231,13 +232,13 @@ int main(int argc, char **argv)
         }
     }
 
-    uint64_t twork_done = _rdtsc();
+    uint64_t twork_done = rdtsc();
     double twork = ((double)(twork_done - tinit_done)) / (cpu_mhz * 1000);
 
     // wait for all nodes to be done
     MPI_Barrier(MPI_COMM_WORLD);
 
-    uint64_t tall_done = _rdtsc();
+    uint64_t tall_done = rdtsc();
     double tall = ((double)(tall_done - tinit_done)) / (cpu_mhz * 1000),
            timbal = ((double)(tall_done - twork_done)) / (cpu_mhz * 1000);
 
@@ -270,7 +271,7 @@ int main(int argc, char **argv)
         wi_done = 0;
         double tmin = DBL_MAX, tmax = 0.0, ttotal_work = 0.0;
         for (i = 0;  i < num_ranks;  i++) {
-            printf("  [%04d] work items: %llu; \ttime (msecs): %g)\n",
+            printf("  [%04d] work items: %lu; \ttime (msecs): %g)\n",
                    i, twi_done[i], tall_work[i]);
             if (tmin > tall_work[i]) tmin = tall_work[i];
             if (tmax < tall_work[i]) tmax = tall_work[i];
@@ -283,7 +284,7 @@ int main(int argc, char **argv)
 
         double best_avg = ttotal_work;
 
-        printf("work items done: %llu\n---\n", wi_done);
+        printf("work items done: %lu\n---\n", wi_done);
         printf("runtime (msecs): %g\n", tall);
         printf("  avg runtime (bestcase) [min, max]: %g (%.2g%%) [%g, %g]\n",
                best_avg, (best_avg * 100) / tall, tmin, tmax);
@@ -301,7 +302,8 @@ int main(int argc, char **argv)
 
     _mm_free(ticks);
 
-    MPI_Finalize();
+    garbo_shutdown(g);
+
     return 0;
 }
 

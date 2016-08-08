@@ -565,7 +565,7 @@ int64_t dtree_initwork(dtree_t *dt, int64_t *first_item, int64_t *last_item)
     }
 
     /* determine and scale with `first`, how much work is available */
-    int64_t my_items, avail_items = dt->last_work_item - dt->first_work_item;
+    int64_t my_items = 0, avail_items = dt->last_work_item - dt->first_work_item;
     if (dt->num_children > 0) avail_items *= dt->first;
     if (dt->num_children == 0  ||  dt->parents_work) {
         my_items = MAX(avail_items * dt->distrib_fractions[0], dt->min_distrib);
