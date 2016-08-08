@@ -21,7 +21,7 @@ typedef struct garbo_tag {
 /* global array */
 typedef struct garray_tag {
     garbo_t     *g;
-    int         ndims, *dims, *chunks, elem_size, nextra_elems, nelems_per_node,
+    int64_t     ndims, *dims, *chunks, elem_size, nextra_elems, nelems_per_node,
                 nlocal_elems;
     int8_t      *buffer;
     MPI_Win     win;
@@ -73,26 +73,26 @@ typedef struct dtree_tag {
  */
 
 int garbo_init(int ac, char **av, garbo_t **g);
-int garbo_shutdown(garbo_t *g);
+void garbo_shutdown(garbo_t *g);
 
 /* number of participating nodes */
-int garbo_nnodes();
+int64_t garbo_nnodes();
 
 /* this node's unique identifier */
-int garbo_nodeid();
+int64_t garbo_nodeid();
 
 /* global array */
-int garray_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
-        garray_t *ga);
-int garray_destroy(garray_t *ga);
+int garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
+        int64_t *chunks, garray_t **ga);
+void garray_destroy(garray_t *ga);
 
-int garray_sync(garray_t *ga);
+void garray_sync(garray_t *ga);
 
-int garray_get(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
-int garray_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld);
+int garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf);
+int garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf);
 
-int garray_distribution(garray_t *ga, int nid, int *lo, int *hi);
-int garray_access(garray_t *ga, int *lo, int *hi, void **buf, int *ld);
+int garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi);
+int garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf);
 
 /* dtree */
 int dtree_create(garbo_t *g, int fan_out, int64_t num_work_items,

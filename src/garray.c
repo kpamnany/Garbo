@@ -18,21 +18,19 @@
 #include "garbo.h"
 
 
-#ifndef UINT64_MAX
-#define UINT64_MAX      18446744073709551615ULL
-#endif
-
-
 /*  garray_create()
  */
-int garray_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
-        garray_t *ga)
+int garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
+        int64_t *chunks, garray_t **ga_)
 {
     /* only 1D for now */
     assert(ndims == 1);
 
     /* only regular distribution for now */
     assert(chunks == NULL);
+
+    garray_t *ga;
+    posix_memalign((void **)&ga, 64, sizeof(garray_t));
 
     ga->g = g;
 
@@ -48,7 +46,7 @@ int garray_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
 
     /* fill in array info */
     ga->ndims = ndims;
-    ga->dims = (int *)malloc(ndims * sizeof(int));
+    ga->dims = (int64_t *)malloc(ndims * sizeof(int64_t));
     for (int i = 0;  i < ndims;  ++i)
         ga->dims[i] = dims[i];
     ga->elem_size = elem_size;
@@ -58,30 +56,29 @@ int garray_create(garbo_t *g, int ndims, int *dims, int elem_size, int *chunks,
             MPI_COMM_WORLD, &ga->buffer, &ga->win);
     MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
 
+    *ga_ = ga;
+
     return 0;
 }
 
 
 /*  garray_destroy()
  */
-int garray_destroy(garray_t *ga)
+void garray_destroy(garray_t *ga)
 {
     free(ga->dims);
     MPI_Win_unlock_all(ga->win);
     MPI_Win_free(&ga->win);
-
-    return 0;
+    free(ga);
 }
 
 
 /*  garray_sync()
  */
-int garray_sync(garray_t *ga)
+void garray_sync(garray_t *ga)
 {
     MPI_Win_flush_all(ga->win);
     MPI_Barrier(MPI_COMM_WORLD);
-
-    return 0;
 }
 
 
@@ -130,7 +127,7 @@ static div_t calc_get_target(garray_t *ga, int gidx)
 
 /*  garray_get()
  */
-int garray_get(garray_t *ga, int *lo, int *hi, void *buffer, int *ld)
+int garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buffer)
 {
     int count = (hi[0]-lo[0])+1, length = count*ga->elem_size,
         tnid, tidx, n, oidx = 0;
@@ -183,7 +180,7 @@ int garray_get(garray_t *ga, int *lo, int *hi, void *buffer, int *ld)
 
 /*  garray_put()
  */
-int garray_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld)
+int garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
 {
     assert(0);
 
@@ -193,7 +190,7 @@ int garray_put(garray_t *ga, int *lo, int *hi, void *buf, int *ld)
 
 /*  garray_distribution()
  */
-int garray_distribution(garray_t *ga, int nid, int *lo, int *hi)
+int garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
 {
     if (nid >= ga->g->nnodes)
         return -1;
@@ -216,7 +213,7 @@ int garray_distribution(garray_t *ga, int nid, int *lo, int *hi)
 
 /*  garray_access()
  */
-int garray_access(garray_t *ga, int *lo, int *hi, void **buf, int *ld)
+int garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
 {
     /* TODO: validate lo and hi */
 

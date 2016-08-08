@@ -5,7 +5,7 @@
 # 2018.06.01   kiran.pamnany   Initial code
 #
 
-CC=mpicc
+CC=mpiicc
 
 .SUFFIXES: .c .h .o .a
 .PHONY: clean test

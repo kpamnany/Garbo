@@ -32,18 +32,16 @@ int garbo_init(int ac, char **av, garbo_t **g_)
 
 /*  garbo_shutdown()
  */
-int garbo_shutdown(garbo_t *g)
+void garbo_shutdown(garbo_t *g)
 {
     MPI_Finalize();
     free(g);
-
-    return 0;
 }
 
 
 /*  garbo_nnodes()
  */
-int garbo_nnodes()
+int64_t garbo_nnodes()
 {
     int num_ranks;
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
@@ -53,7 +51,7 @@ int garbo_nnodes()
 
 /*  garbo_nodeid()
  */
-int garbo_nodeid()
+int64_t garbo_nodeid()
 {
     int my_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
