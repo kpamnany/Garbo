@@ -20,7 +20,7 @@
 
 /*  garray_create()
  */
-int garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
+int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
         int64_t *chunks, garray_t **ga_)
 {
     /* only 1D for now */
@@ -35,7 +35,7 @@ int garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
     ga->g = g;
 
     /* distribution of elements */
-    div_t res = div(dims[0], g->nnodes);
+    ldiv_t res = ldiv(dims[0], g->nnodes);
     ga->nextra_elems = res.rem;
     ga->nelems_per_node = ga->nlocal_elems = res.quot;
     if (g->nid < ga->nextra_elems)
@@ -47,7 +47,7 @@ int garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_size,
     /* fill in array info */
     ga->ndims = ndims;
     ga->dims = (int64_t *)malloc(ndims * sizeof(int64_t));
-    for (int i = 0;  i < ndims;  ++i)
+    for (int64_t i = 0;  i < ndims;  ++i)
         ga->dims[i] = dims[i];
     ga->elem_size = elem_size;
 
@@ -73,25 +73,48 @@ void garray_destroy(garray_t *ga)
 }
 
 
-/*  garray_sync()
+/*  garray_ndims()
  */
-void garray_sync(garray_t *ga)
+int64_t garray_ndims(garray_t *ga)
 {
-    MPI_Win_flush_all(ga->win);
-    MPI_Barrier(MPI_COMM_WORLD);
+    return ga->ndims;
+}
+
+
+/*  garray_length()
+ */
+int64_t garray_length(garray_t *ga)
+{
+    int64_t r = 1;
+
+    for (int64_t i = 0;  i < ga->ndims;  ++i)
+        r *= ga->dims[i];
+
+    return r;
+}
+
+
+/*  garary_size()
+ */
+int64_t garray_size(garray_t *ga, int64_t *dims)
+{
+    for (int64_t i = 0;  i < ga->ndims;  ++i)
+        dims[i] = ga->dims[i];
+
+    return 0;
 }
 
 
 /*  calc_get_target()
  */
-static div_t calc_get_target(garray_t *ga, int gidx)
+static ldiv_t calc_get_target(garray_t *ga, int64_t gidx)
 {
-    div_t res = div(gidx, ga->nlocal_elems);
+    ldiv_t res = ldiv(gidx, ga->nlocal_elems);
 
     /* if the distribution is not perfectly even, we have to adjust
        the target nid+idx appropriately */
     if (ga->nextra_elems > 0) {
-        int nid = res.quot, idx = res.rem;
+        int64_t nid = res.quot, idx = res.rem;
 
         /* if i have an extra element... */
         if (ga->g->nid < ga->nextra_elems) {
@@ -127,13 +150,13 @@ static div_t calc_get_target(garray_t *ga, int gidx)
 
 /*  garray_get()
  */
-int garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buffer)
+int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 {
-    int count = (hi[0]-lo[0])+1, length = count*ga->elem_size,
+    int64_t count = (hi[0]-lo[0])+1, length = count*ga->elem_size,
         tnid, tidx, n, oidx = 0;
-    int8_t *buf = (int8_t *)buffer;
-    div_t target_lo = calc_get_target(ga, lo[0]);
-    div_t target_hi = calc_get_target(ga, hi[0]);
+    int8_t *buf = (int8_t *)buf_;
+    ldiv_t target_lo = calc_get_target(ga, lo[0]);
+    ldiv_t target_hi = calc_get_target(ga, hi[0]);
 
     /* is all requested data on the same target? */
     if (target_lo.quot == target_hi.quot) {
@@ -180,7 +203,7 @@ int garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buffer)
 
 /*  garray_put()
  */
-int garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
+int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
 {
     assert(0);
 
@@ -190,12 +213,12 @@ int garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
 
 /*  garray_distribution()
  */
-int garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
+int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
 {
     if (nid >= ga->g->nnodes)
         return -1;
 
-    int a1, a2;
+    int64_t a1, a2;
     if (nid < ga->nextra_elems) {
         a1 = nid;
         a2 = 1;
@@ -213,12 +236,21 @@ int garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
 
 /*  garray_access()
  */
-int garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
+int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
 {
     /* TODO: validate lo and hi */
 
     *buf = ga->buffer;
 
     return 0;
+}
+
+
+/*  garray_sync()
+ */
+void garray_sync(garray_t *ga)
+{
+    MPI_Win_flush_all(ga->win);
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
