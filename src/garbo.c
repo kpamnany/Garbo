@@ -13,7 +13,7 @@
 
 /*  garbo_init()
  */
-int garbo_init(int ac, char **av, garbo_t **g_)
+int64_t garbo_init(int ac, char **av, garbo_t **g_)
 {
     int r = MPI_Init(&ac, &av);
     if (r != MPI_SUCCESS)
