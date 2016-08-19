@@ -17,7 +17,7 @@ CFLAGS+=-fpic
 CFLAGS+=-I./include
 CFLAGS+=-I./src
 
-SRCS=src/garbo.c src/garray.c src/dtree.c
+SRCS=src/garbo.c src/garray.c src/dtree.c src/log.c
 OBJS=$(subst .c,.o, $(SRCS))
 
 ifeq ($(DEBUG),yes)

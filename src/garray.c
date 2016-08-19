@@ -26,6 +26,9 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     /* only 1D for now */
     assert(ndims == 1);
 
+    if (ndims < 1  ||  ndims > GARRAY_MAX_DIMS)
+        return -1;
+
     /* only regular distribution for now */
     assert(chunks == NULL);
 
@@ -58,6 +61,9 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
 
     *ga_ = ga;
 
+    LOG_INFO(g->glog, "garray created %ld-array, element size %ld\n",
+             ndims, elem_size);
+
     return 0;
 }
 
@@ -69,6 +75,10 @@ void garray_destroy(garray_t *ga)
     free(ga->dims);
     MPI_Win_unlock_all(ga->win);
     MPI_Win_free(&ga->win);
+
+    LOG_INFO(ga->g->glog, "garray destroyed %ld-array, element size %ld\n",
+             ga->ndims, ga->elem_size);
+
     free(ga);
 }
 
@@ -144,6 +154,9 @@ static ldiv_t calc_get_target(garray_t *ga, int64_t gidx)
         res.quot = nid; res.rem = idx;
     }
 
+    LOG_DEBUG(ga->g->glog, "garray get %ld, target %ld.%ld\n",
+              gidx, res.quot, res.rem);
+
     return res;
 }
 
@@ -160,6 +173,8 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
     /* is all requested data on the same target? */
     if (target_lo.quot == target_hi.quot) {
+        LOG_DEBUG(ga->g->glog, "garray get %ld-%ld, single target %ld.%ld\n",
+                  lo[0], hi[0], target_lo.quot, target_lo.rem);
         MPI_Get(buf, length, MPI_INT8_T, target_lo.quot,
                 (target_lo.rem*ga->elem_size),
                 length, MPI_INT8_T, ga->win);
@@ -171,7 +186,11 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     /* get the data in the lo nid */
     tnid = target_lo.quot;
     tidx = target_lo.rem;
-    n = ga->nelems_per_node - tidx + (tnid < ga->nextra_elems ? 1 : 0);
+    n = ga->nelems_per_node + (tnid < ga->nextra_elems ? 1 : 0) - tidx;
+
+    LOG_DEBUG(ga->g->glog, "garray getting %ld elements from %ld.%ld\n",
+              n, tnid, tidx);
+
     MPI_Get(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
             (n*ga->elem_size), MPI_INT8_T, ga->win);
     oidx = (n*ga->elem_size);
@@ -181,6 +200,10 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     tidx = 0;
     for (tnid = target_lo.quot+1;  tnid < target_hi.quot;  ++tnid) {
         n = ga->nelems_per_node + (tnid < ga->nextra_elems ? 1 : 0);
+
+        LOG_DEBUG(ga->g->glog, "garray getting %ld elements from %ld.%ld\n",
+                  n, tnid, tidx);
+
         MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
                 (n*ga->elem_size), MPI_INT8_T, ga->win);
         oidx += (n*ga->elem_size);
@@ -190,11 +213,13 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     /* get the data in the hi nid */
     tnid = target_hi.quot;
     tidx = target_hi.rem;
-    n = ga->nelems_per_node - target_hi.rem
-            + (target_hi.quot < ga->nextra_elems ? 1 : 0);
-    MPI_Get(&buf[oidx], length, MPI_INT8_T, target_hi.quot,
-            (target_hi.rem*ga->elem_size), (n*ga->elem_size),
-            MPI_INT8_T, ga->win);
+    n = tidx + 1;
+
+    LOG_DEBUG(ga->g->glog, "garray getting %ld elements up to %ld.%ld\n",
+              n, tnid, tidx);
+
+    MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
+            (n*ga->elem_size), MPI_INT8_T, ga->win);
     MPI_Win_flush_local(target_hi.quot, ga->win);
 
     return 0;
@@ -205,6 +230,8 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
  */
 int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
 {
+    LOG_DEBUG(ga->g->glog, "garray put unimplemented!\n");
+
     assert(0);
 
     return 0;
@@ -215,8 +242,11 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
  */
 int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
 {
-    if (nid >= ga->g->nnodes)
+    if (nid >= ga->g->nnodes) {
+        LOG_DEBUG(ga->g->glog, "garray distribution requested for node %ld out"
+                  " of %d nodes\n", nid, ga->g->nnodes);
         return -1;
+    }
 
     int64_t a1, a2;
     if (nid < ga->nextra_elems) {
@@ -238,9 +268,14 @@ int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
  */
 int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
 {
-    /* TODO: validate lo and hi */
+    int64_t mylo[GARRAY_MAX_DIMS], myhi[GARRAY_MAX_DIMS];
+    garray_distribution(ga, ga->g->nid, mylo, myhi);
 
-    *buf = ga->buffer;
+    int64_t lo_ofs = lo[0]-mylo[0], hi_ofs = hi[0]-myhi[0];
+    if (lo_ofs < 0  ||  hi_ofs > 0)
+        return -1;
+
+    *buf = &ga->buffer[lo_ofs*ga->elem_size];
 
     return 0;
 }

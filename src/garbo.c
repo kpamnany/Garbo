@@ -24,6 +24,8 @@ int64_t garbo_init(int ac, char **av, garbo_t **g_)
     posix_memalign((void **)&g, 64, sizeof(garbo_t));
     g->nnodes = garbo_nnodes();
     g->nid = garbo_nodeid();
+    log_init(&g->glog, "GARRAY_LOG_LEVEL");
+    log_init(&g->dlog, "DTREE_LOG_LEVEL");
     *g_ = g;
 
     return 0;

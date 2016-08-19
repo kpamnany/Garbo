@@ -11,10 +11,14 @@
 #include "util.h"
 #include "garray_debug.h"
 #include "dtree_debug.h"
+#include "log.h"
+
+#define GARRAY_MAX_DIMS         1
 
 /* garbo handle */
 typedef struct garbo_tag {
     int nnodes, nid;
+    log_t glog, dlog;
 } garbo_t;
 
 
