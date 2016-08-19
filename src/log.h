@@ -15,7 +15,7 @@ enum {
     LOG_LEVEL_CRITICAL
 };
 
-#define DEFAULT_LOG_LEVEL "debug"
+#define DEFAULT_LOG_LEVEL "warn"
 
 typedef struct log_tag {
     int level;
