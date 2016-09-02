@@ -61,6 +61,14 @@ int64_t garbo_nodeid()
 }
 
 
+/*  garbo_sync_all()
+ */
+void garbo_sync()
+{
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+
 /*  rdtsc()
  */
 inline uint64_t __attribute__((always_inline)) rdtsc()

@@ -78,6 +78,7 @@ typedef struct dtree_tag {
 
 int64_t garbo_init(int ac, char **av, garbo_t **g);
 void garbo_shutdown(garbo_t *g);
+void garbo_sync();
 
 /* number of participating nodes */
 int64_t garbo_nnodes();
@@ -100,7 +101,7 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf);
 int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi);
 int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf);
 
-void garray_sync(garray_t *ga);
+void garray_flush(garray_t *ga);
 
 /* dtree */
 int dtree_create(garbo_t *g, int fan_out, int64_t num_work_items,
