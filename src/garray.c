@@ -228,11 +228,65 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
 /*  garray_put()
  */
-int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf)
+int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 {
-    LOG_DEBUG(ga->g->glog, "garray put unimplemented!\n");
+    int64_t count = (hi[0]-lo[0])+1, length = count*ga->elem_size,
+        tnid, tidx, n, oidx = 0;
+    int8_t *buf = (int8_t *)buf_;
+    ldiv_t target_lo = calc_get_target(ga, lo[0]);
+    ldiv_t target_hi = calc_get_target(ga, hi[0]);
 
-    assert(0);
+    /* is all data going to the same target? */
+    if (target_lo.quot == target_hi.quot) {
+        tnid = target_lo.quot;
+        tidx = target_lo.rem;
+        LOG_DEBUG(ga->g->glog, "garray put %ld-%ld, single target %ld.%ld\n",
+                  lo[0], hi[0], tnid, tidx);
+        MPI_Put(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
+                length, MPI_INT8_T, ga->win);
+        MPI_Win_flush_local(target_lo.quot, ga->win);
+
+        return 0;
+    }
+
+    /* put the data into the lo nid */
+    tnid = target_lo.quot;
+    tidx = target_lo.rem;
+    n = ga->nelems_per_node + (tnid < ga->nextra_elems ? 1 : 0) - tidx;
+
+    LOG_DEBUG(ga->g->glog, "garray putting %ld elements into %ld.%ld\n",
+              n, tnid, tidx);
+
+    MPI_Put(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
+            (n*ga->elem_size), MPI_INT8_T, ga->win);
+    oidx = (n*ga->elem_size);
+    MPI_Win_flush_local(tnid, ga->win);
+
+    /* put the data into the in-between nids */
+    tidx = 0;
+    for (tnid = target_lo.quot+1;  tnid < target_hi.quot;  ++tnid) {
+        n = ga->nelems_per_node + (tnid < ga->nextra_elems ? 1 : 0);
+
+        LOG_DEBUG(ga->g->glog, "garray putting %ld elements into %ld.%ld\n",
+                  n, tnid, tidx);
+
+        MPI_Put(&buf[oidx], length, MPI_INT8_T, tnid, 0,
+                (n*ga->elem_size), MPI_INT8_T, ga->win);
+        oidx += (n*ga->elem_size);
+        MPI_Win_flush_local(tnid, ga->win);
+    }
+
+    /* put the data into the hi nid */
+    tnid = target_hi.quot;
+    tidx = target_hi.rem;
+    n = tidx + 1;
+
+    LOG_DEBUG(ga->g->glog, "garray putting %ld elements up to %ld.%ld\n",
+              n, tnid, tidx);
+
+    MPI_Put(&buf[oidx], length, MPI_INT8_T, tnid, 0,
+            (n*ga->elem_size), MPI_INT8_T, ga->win);
+    MPI_Win_flush_local(target_hi.quot, ga->win);
 
     return 0;
 }
