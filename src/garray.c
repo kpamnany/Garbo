@@ -70,7 +70,7 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
 void garray_destroy(garray_t *ga)
 {
     garray_flush(ga);
-    int r = MPI_Win_unlock_all(ga->win);
+    MPI_Win_unlock_all(ga->win);
     MPI_Win_free(&ga->win);
     free(ga->dims);
 
