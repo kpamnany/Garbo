@@ -44,9 +44,6 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     if (g->nid < ga->nextra_elems)
         ++ga->nlocal_elems;
 
-    /* every node must have at least one element */
-    assert(res.quot > 0);
-
     /* fill in array info */
     ga->ndims = ndims;
     ga->dims = (int64_t *)malloc(ndims * sizeof(int64_t));
@@ -55,9 +52,11 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     ga->elem_size = elem_size;
 
     /* allocate the array */
-    MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
-            MPI_COMM_WORLD, &ga->buffer, &ga->win);
-    MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
+    if (ga->nlocal_elems > 0) {
+        MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
+                MPI_COMM_WORLD, &ga->buffer, &ga->win);
+        MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
+    }
 
     *ga_ = ga;
 
@@ -73,8 +72,10 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
 void garray_destroy(garray_t *ga)
 {
     free(ga->dims);
-    MPI_Win_unlock_all(ga->win);
-    MPI_Win_free(&ga->win);
+    if (ga->nlocal_elems > 0) {
+        MPI_Win_unlock_all(ga->win);
+        MPI_Win_free(&ga->win);
+    }
 
     LOG_INFO(ga->g->glog, "garray destroyed %ld-array, element size %ld\n",
              ga->ndims, ga->elem_size);
@@ -119,7 +120,18 @@ int64_t garray_size(garray_t *ga, int64_t *dims)
  */
 static ldiv_t calc_get_target(garray_t *ga, int64_t gidx)
 {
-    ldiv_t res = ldiv(gidx, ga->nlocal_elems);
+    ldiv_t res;
+
+    /* if this node has no local elements, there are less than nnodes
+       elements, so the array index is the node index */
+    if (ga->nlocal_elems == 0) {
+        res.quot = gidx;
+        res.rem = 0;
+        return res;
+    }
+
+    /* compute the target nid+idx */
+    res = ldiv(gidx, ga->nlocal_elems);
 
     /* if the distribution is not perfectly even, we have to adjust
        the target nid+idx appropriately */
@@ -314,6 +326,9 @@ int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
     lo[0] = nid * ga->nelems_per_node + a1;
     hi[0] = lo[0] + ga->nelems_per_node + a2 - 1; /* inclusive */
 
+    if (hi[0] > lo[0])
+        hi[0] = lo[0];
+
     return 0;
 }
 
@@ -322,6 +337,8 @@ int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
  */
 int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
 {
+    *buf = NULL;
+
     int64_t mylo[GARRAY_MAX_DIMS], myhi[GARRAY_MAX_DIMS];
     garray_distribution(ga, ga->g->nid, mylo, myhi);
 
@@ -329,7 +346,8 @@ int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
     if (lo_ofs < 0  ||  hi_ofs > 0)
         return -1;
 
-    *buf = &ga->buffer[lo_ofs*ga->elem_size];
+    if (ga->nlocal_elems > 0)
+        *buf = &ga->buffer[lo_ofs*ga->elem_size];
 
     return 0;
 }
