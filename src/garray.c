@@ -52,11 +52,9 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     ga->elem_size = elem_size;
 
     /* allocate the array */
-    if (ga->nlocal_elems > 0) {
-        MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
-                MPI_COMM_WORLD, &ga->buffer, &ga->win);
-        MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
-    }
+    MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
+            MPI_COMM_WORLD, &ga->buffer, &ga->win);
+    MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
 
     *ga_ = ga;
 
@@ -71,11 +69,10 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
  */
 void garray_destroy(garray_t *ga)
 {
+    garray_flush(ga);
+    int r = MPI_Win_unlock_all(ga->win);
+    MPI_Win_free(&ga->win);
     free(ga->dims);
-    if (ga->nlocal_elems > 0) {
-        MPI_Win_unlock_all(ga->win);
-        MPI_Win_free(&ga->win);
-    }
 
     LOG_INFO(ga->g->glog, "garray destroyed %ld-array, element size %ld\n",
              ga->ndims, ga->elem_size);
@@ -190,7 +187,6 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         MPI_Get(buf, length, MPI_INT8_T, target_lo.quot,
                 (target_lo.rem*ga->elem_size),
                 length, MPI_INT8_T, ga->win);
-        MPI_Win_flush_local(target_lo.quot, ga->win);
 
         return 0;
     }
@@ -206,7 +202,6 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     MPI_Get(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
             (n*ga->elem_size), MPI_INT8_T, ga->win);
     oidx = (n*ga->elem_size);
-    MPI_Win_flush_local(tnid, ga->win);
 
     /* get the data in the in-between nids */
     tidx = 0;
@@ -219,7 +214,6 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
                 (n*ga->elem_size), MPI_INT8_T, ga->win);
         oidx += (n*ga->elem_size);
-        MPI_Win_flush_local(tnid, ga->win);
     }
 
     /* get the data in the hi nid */
@@ -232,7 +226,6 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
     MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
             (n*ga->elem_size), MPI_INT8_T, ga->win);
-    MPI_Win_flush_local(target_hi.quot, ga->win);
 
     return 0;
 }
@@ -325,9 +318,6 @@ int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
     }
     lo[0] = nid * ga->nelems_per_node + a1;
     hi[0] = lo[0] + ga->nelems_per_node + a2 - 1; /* inclusive */
-
-    if (hi[0] > lo[0])
-        hi[0] = lo[0];
 
     return 0;
 }
