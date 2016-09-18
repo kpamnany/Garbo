@@ -15,7 +15,8 @@
  */
 int64_t garbo_init(int ac, char **av, garbo_t **g_)
 {
-    int r = MPI_Init(&ac, &av);
+    int provided;
+    int r = MPI_Init_thread(&ac, &av, MPI_THREAD_MULTIPLE, &provided);
     if (r != MPI_SUCCESS)
         return -1;
 
