@@ -5,7 +5,9 @@
 # 2016.06.01   kiran.pamnany   Initial code
 #
 
-CC=cc
+CRAY?=yes
+
+CC?=cc
 
 .SUFFIXES: .c .h .o
 .PHONY: clean
@@ -19,15 +21,21 @@ CFLAGS+=-I../include
 CFLAGS+=-I../src
 CFLAGS+=-I$(INCLUDE)
 
-LDFLAGS+=-dynamic
-LDFLAGS+=-L..
-LDFLAGS+=-lgarbo
-LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+ifeq ($(CRAY),yes)
+    LDFLAGS+=-dynamic
+    LDFLAGS+=-L..
+    LDFLAGS+=-lgarbo
+    LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+else
+    LDFLAGS+=../libgarbo.so
+endif
 
-LDFLAGS+=-L$(MKLROOT)/lib/intel64
-LDFLAGS+=-lmkl_intel_ilp64
-LDFLAGS+=-lmkl_core
-LDFLAGS+=-lmkl_sequential
+ifneq ($(MKLROOT),)
+    LDFLAGS+=-L$(MKLROOT)/lib/intel64
+    LDFLAGS+=-lmkl_intel_ilp64
+    LDFLAGS+=-lmkl_core
+    LDFLAGS+=-lmkl_sequential
+endif
 LDFLAGS+=-lpthread
 LDFLAGS+=-lm
 LDFLAGS+=-ldl

@@ -5,6 +5,8 @@
 # 2018.06.01   kiran.pamnany   Initial code
 #
 
+CRAY?=yes
+
 CC?=cc
 
 .SUFFIXES: .c .h .o .a
@@ -17,7 +19,9 @@ CFLAGS+=-fpic
 CFLAGS+=-I./include
 CFLAGS+=-I./src
 
-LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+ifeq ($(CRAY),yes)
+    LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+endif
 
 SRCS=src/garbo.c src/garray.c src/dtree.c src/log.c
 OBJS=$(subst .c,.o, $(SRCS))

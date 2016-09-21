@@ -1,16 +1,16 @@
+sudio: required
+dist: trusty
 language: c
 os: linux
 compiler: mpicc
 notifications:
   email: false
 env:
-  - MPICH_CC=gcc-4.8
+  - MPICH_CC=gcc
 before_install:
-  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get -qq update
-  - sudo apt-get install -y gcc-4.8
-  - sudo apt-get install -y mpich2 libmpich2-3 libmpich2-dev
+  - sudo apt-get install -y mpich libmpich-dev
 script:
-  - make && make test
+  - CRAY=no make && CRAY=no make test
   - mpiexec.hydra -np 4 test/garraytest
 
