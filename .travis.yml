@@ -1,10 +1,9 @@
 language: c
 os: linux
-compiler: cc
+compiler: mpicc
 notifications:
   email: false
 env:
-  - OMP_NUM_THREADS=2
   - MPICH_CC=gcc-4.8
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
