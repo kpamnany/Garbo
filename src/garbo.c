@@ -11,14 +11,20 @@
 #include "garbo.h"
 
 
+/* initialize and finalize MPI? */
+static int mpi_was_initialized = 0;
+
+
 /*  garbo_init()
  */
 int64_t garbo_init(int ac, char **av, garbo_t **g_)
 {
-    int provided;
-    int r = MPI_Init_thread(&ac, &av, MPI_THREAD_MULTIPLE, &provided);
-    if (r != MPI_SUCCESS)
-        return -1;
+    MPI_Initialized(&mpi_was_initialized);
+
+    if (!mpi_was_initialized) {
+        int provided;
+        MPI_Init_thread(&ac, &av, MPI_THREAD_MULTIPLE, &provided);
+    }
 
     //garbo_t *g = aligned_alloc(64, sizeof(garbo_t));
     garbo_t *g;
@@ -37,8 +43,9 @@ int64_t garbo_init(int ac, char **av, garbo_t **g_)
  */
 void garbo_shutdown(garbo_t *g)
 {
-    MPI_Finalize();
     free(g);
+    if (!mpi_was_initialized)
+        MPI_Finalize();
 }
 
 

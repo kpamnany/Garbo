@@ -5,7 +5,7 @@
 # 2018.06.01   kiran.pamnany   Initial code
 #
 
-CC=mpiicc
+CC?=cc
 
 .SUFFIXES: .c .h .o .a
 .PHONY: clean test
@@ -16,6 +16,8 @@ CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-fpic
 CFLAGS+=-I./include
 CFLAGS+=-I./src
+
+LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
 
 SRCS=src/garbo.c src/garray.c src/dtree.c src/log.c
 OBJS=$(subst .c,.o, $(SRCS))
@@ -34,7 +36,7 @@ test: $(TARGET)
 	$(MAKE) -C test
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -shared -o $(TARGET) $(OBJS)
+	$(CC) $(CFLAGS) -shared -o $(TARGET) $(LDFLAGS) $(OBJS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@

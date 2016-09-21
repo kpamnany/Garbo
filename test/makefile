@@ -5,7 +5,7 @@
 # 2016.06.01   kiran.pamnany   Initial code
 #
 
-CC=mpiicc
+CC=cc
 
 .SUFFIXES: .c .h .o
 .PHONY: clean
@@ -13,13 +13,24 @@ CC=mpiicc
 CFLAGS+=-Wall
 CFLAGS+=-std=c11
 CFLAGS+=-D_GNU_SOURCE
-CFLAGS+=-mkl
+CFLAGS+=-fpic
 CFLAGS+=-I.
 CFLAGS+=-I../include
 CFLAGS+=-I../src
+CFLAGS+=-I$(INCLUDE)
 
-LDOBJS+=-lpthread
-LDOBJS+=../libgarbo.so
+LDFLAGS+=-dynamic
+LDFLAGS+=-L..
+LDFLAGS+=-lgarbo
+LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+
+LDFLAGS+=-L$(MKLROOT)/lib/intel64
+LDFLAGS+=-lmkl_intel_ilp64
+LDFLAGS+=-lmkl_core
+LDFLAGS+=-lmkl_sequential
+LDFLAGS+=-lpthread
+LDFLAGS+=-lm
+LDFLAGS+=-ldl
 
 SRCS=garraytest.c dtreetest.c
 OBJS=$(subst .c,.o, $(SRCS))
@@ -33,9 +44,11 @@ endif
 
 all: $(BINS)
 
-$(BINS): $(SRCS) ../libgarbo.so
-	$(CC) $(CFLAGS) garraytest.c -o garraytest $(LDOBJS)
-	$(CC) $(CFLAGS) -qopenmp dtreetest.c -o dtreetest $(LDOBJS)
+garraytest: $(SRCS) ../libgarbo.so
+	$(CC) $(CFLAGS) garraytest.c -o garraytest $(LDFLAGS)
+
+dtreetest: dtreetest.c ../libgarbo.so
+	$(CC) $(CFLAGS) -openmp dtreetest.c -o dtreetest $(LDFLAGS)
 
 clean:
 	$(RM) -f $(BINS) $(OBJS)
