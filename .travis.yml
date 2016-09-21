@@ -13,5 +13,5 @@ before_install:
 script:
   - CRAY=no make && CRAY=no make -C test garraytest
   - cd test
-  - mpiexec.hydra -np 4 garraytest
+  - mpiexec.hydra -np 4 ./garraytest
 
