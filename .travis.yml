@@ -11,6 +11,6 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y mpich libmpich-dev
 script:
-  - CRAY=no make && CRAY=no make test
-  - mpiexec.hydra -np 4 test/garraytest
+  - CRAY=no make && CRAY=no make -C test garraytest
+  - LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH mpiexec.hydra -np 4 test/garraytest
 
