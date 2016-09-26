@@ -174,7 +174,7 @@ static ldiv_t calc_get_target(garray_t *ga, int64_t gidx)
  */
 int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 {
-    int r, resultlen;
+    int resultlen;
     char errbuf[MPI_MAX_ERROR_STRING];
     int64_t count = (hi[0]-lo[0])+1, length = count*ga->elem_size,
         tnid, tidx, n, oidx = 0;
@@ -184,17 +184,15 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
     /* is all requested data on the same target? */
     if (target_lo.quot == target_hi.quot) {
+        tnid = target_lo.quot;
+        tidx = target_lo.rem;
+
         LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld-%ld, single target %ld.%ld\n",
                   ga->g->nid, lo[0], hi[0], target_lo.quot, target_lo.rem);
-        r = MPI_Get(buf, length, MPI_INT8_T, target_lo.quot,
+
+        MPI_Get(buf, length, MPI_INT8_T, target_lo.quot,
                     (target_lo.rem*ga->elem_size), length, MPI_INT8_T, ga->win);
-        if (r != MPI_SUCCESS) {
-            MPI_Error_string(r, errbuf, &resultlen);
-            LOG_ERR(ga->g->glog, "[%d] MPI_Get(%ld) returned %s\n",
-                    ga->g->nid, target_lo.quot, errbuf);
-            return -1;
-        }
-        MPI_Win_flush_local(target_lo.quot, ga->win);
+        //MPI_Win_flush_local(target_lo.quot, ga->win);
 
         return 0;
     }
@@ -207,15 +205,9 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements from %ld.%ld\n",
               ga->g->nid, n, tnid, tidx);
 
-    r = MPI_Get(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
+    MPI_Get(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
                 (n*ga->elem_size), MPI_INT8_T, ga->win);
-    if (r != MPI_SUCCESS) {
-        MPI_Error_string(r, errbuf, &resultlen);
-        LOG_ERR(ga->g->glog, "[%d] MPI_Get(%ld) returned %s\n",
-                ga->g->nid, tnid, errbuf);
-        return -1;
-    }
-    MPI_Win_flush_local(tnid, ga->win);
+
     oidx = (n*ga->elem_size);
 
     /* get the data in the in-between nids */
@@ -226,15 +218,9 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements from %ld.%ld\n",
                   ga->g->nid, n, tnid, tidx);
 
-        r = MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
+        MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
                     (n*ga->elem_size), MPI_INT8_T, ga->win);
-        if (r != MPI_SUCCESS) {
-            MPI_Error_string(r, errbuf, &resultlen);
-            LOG_ERR(ga->g->glog, "[%d] MPI_Get(%ld) returned %s\n",
-                    ga->g->nid, tnid, errbuf);
-            return -1;
-        }
-        MPI_Win_flush_local(tnid, ga->win);
+
         oidx += (n*ga->elem_size);
     }
 
@@ -246,15 +232,10 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements up to %ld.%ld\n",
               ga->g->nid, n, tnid, tidx);
 
-    r = MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
+    MPI_Get(&buf[oidx], length, MPI_INT8_T, tnid, 0,
                 (n*ga->elem_size), MPI_INT8_T, ga->win);
-    if (r != MPI_SUCCESS) {
-        MPI_Error_string(r, errbuf, &resultlen);
-        LOG_ERR(ga->g->glog, "[%d] MPI_Get(%ld) returned %s\n",
-                ga->g->nid, tnid, errbuf);
-        return -1;
-    }
-    MPI_Win_flush_local(tnid, ga->win);
+
+    //MPI_Win_flush_local_all(ga->win);
 
     return 0;
 }
@@ -274,11 +255,13 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     if (target_lo.quot == target_hi.quot) {
         tnid = target_lo.quot;
         tidx = target_lo.rem;
+
         LOG_DEBUG(ga->g->glog, "[%d] garray put %ld-%ld, single target %ld.%ld\n",
                   ga->g->nid, lo[0], hi[0], tnid, tidx);
+
         MPI_Put(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
                 length, MPI_INT8_T, ga->win);
-        MPI_Win_flush_local(target_lo.quot, ga->win);
+        MPI_Win_flush_local(tnid, ga->win);
 
         return 0;
     }
@@ -293,8 +276,8 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
     MPI_Put(buf, length, MPI_INT8_T, tnid, (tidx*ga->elem_size),
             (n*ga->elem_size), MPI_INT8_T, ga->win);
+
     oidx = (n*ga->elem_size);
-    MPI_Win_flush_local(tnid, ga->win);
 
     /* put the data into the in-between nids */
     tidx = 0;
@@ -306,8 +289,8 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
         MPI_Put(&buf[oidx], length, MPI_INT8_T, tnid, 0,
                 (n*ga->elem_size), MPI_INT8_T, ga->win);
+
         oidx += (n*ga->elem_size);
-        MPI_Win_flush_local(tnid, ga->win);
     }
 
     /* put the data into the hi nid */
@@ -320,7 +303,8 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 
     MPI_Put(&buf[oidx], length, MPI_INT8_T, tnid, 0,
             (n*ga->elem_size), MPI_INT8_T, ga->win);
-    MPI_Win_flush_local(target_hi.quot, ga->win);
+
+    MPI_Win_flush_local_all(ga->win);
 
     return 0;
 }
