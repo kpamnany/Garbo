@@ -140,7 +140,7 @@ static void calc_target(garray_t *ga, int64_t gidx, int64_t *tnid_, int64_t *tid
                 /* then the target index has to be adjusted upwards */
                 tidx += (tnid - ga->nextra_elems);
                 /* which may mean that the target nid does too */
-                if (tidx >= (ga->nlocal_elems - 1)) {
+                while (tidx >= (ga->nlocal_elems - 1)) {
                     ++tnid;
                     tidx -= (ga->nlocal_elems - 1);
                 }
@@ -255,7 +255,7 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     /* is all data going to the same target? */
     if (tlonid == thinid) {
         LOG_DEBUG(ga->g->glog, "[%d] garray put %ld-%ld, single target %ld.%ld\n",
-                  ga->g->nid, lo[0], hi[0], tnid, tidx);
+                  ga->g->nid, lo[0], hi[0], tlonid, tloidx);
 
         MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tlonid, 0, ga->win);
         MPI_Put(buf, length, MPI_INT8_T,
