@@ -20,7 +20,10 @@ CFLAGS+=-I./include
 CFLAGS+=-I./src
 
 ifeq ($(CRAY),yes)
+    CFLAGS+=-craympich-mt
     LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+else
+    CFLAGS+=-mt_mpi
 endif
 
 SRCS=src/garbo.c src/garray.c src/dtree.c src/log.c
@@ -47,5 +50,4 @@ $(TARGET): $(OBJS)
 
 clean:
 	$(MAKE) -C test clean
-	$(RM) -f $(TARGET) $(OBJS)
-
+	$(RM) -f $(TARGET) $(OBJS) 
