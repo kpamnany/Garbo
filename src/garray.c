@@ -190,6 +190,7 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
                 tlonid, (tloidx * ga->elem_size), length, MPI_INT8_T,
                 ga->win);
         MPI_Win_unlock(tlonid, ga->win);
+        //MPI_Win_flush_local(tlonid, ga->win);
 
         return 0;
     }
@@ -236,6 +237,7 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
             thinid, 0, (n * ga->elem_size), MPI_INT8_T,
             ga->win);
     MPI_Win_unlock(thinid, ga->win);
+    //MPI_Win_flush_local_all(ga->win);
 
     return 0;
 }
@@ -262,6 +264,7 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
                 tlonid, (tloidx * ga->elem_size), length, MPI_INT8_T,
                 ga->win);
         MPI_Win_unlock(tlonid, ga->win);
+        //MPI_Win_flush(tlonid, ga->win);
 
         return 0;
     }
@@ -308,6 +311,7 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
             thinid, 0, (n * ga->elem_size), MPI_INT8_T,
             ga->win);
     MPI_Win_unlock(thinid, ga->win);
+    //MPI_Win_flush_all(ga->win);
 
     return 0;
 }
