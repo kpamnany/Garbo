@@ -12,7 +12,7 @@ CC?=cc
 .SUFFIXES: .c .h .o .a
 .PHONY: clean test
 
-CFLAGS+=-Wall
+CFLAGS+=-Wall -g -debug inline-debug-info -craympich-mt 
 CFLAGS+=-std=c11
 CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-fpic
@@ -20,7 +20,7 @@ CFLAGS+=-I./include
 CFLAGS+=-I./src
 
 ifeq ($(CRAY),yes)
-    LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+    LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive 
 endif
 
 SRCS=src/garbo.c src/garray.c src/dtree.c src/log.c

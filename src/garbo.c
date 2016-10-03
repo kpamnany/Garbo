@@ -24,6 +24,7 @@ int64_t garbo_init(int ac, char **av, garbo_t **g_)
     if (!mpi_was_initialized) {
         int provided;
         MPI_Init_thread(&ac, &av, MPI_THREAD_MULTIPLE, &provided);
+        //MPI_Init_thread(&ac, &av, MPI_THREAD_SERIALIZED, &provided);
     }
 
     //garbo_t *g = aligned_alloc(64, sizeof(garbo_t));

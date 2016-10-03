@@ -12,7 +12,7 @@ CC?=cc
 .SUFFIXES: .c .h .o
 .PHONY: clean
 
-CFLAGS+=-Wall
+CFLAGS+=-Wall -g -debug inline-debug-info
 CFLAGS+=-std=c11
 CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-fpic
