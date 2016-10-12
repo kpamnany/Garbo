@@ -54,7 +54,7 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     /* allocate the array */
     MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
             MPI_COMM_WORLD, &ga->buffer, &ga->win);
-    //MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
+    MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
 
     *ga_ = ga;
 
@@ -70,7 +70,7 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
 void garray_destroy(garray_t *ga)
 {
     garray_flush(ga);
-    //MPI_Win_unlock_all(ga->win);
+    MPI_Win_unlock_all(ga->win);
     MPI_Win_free(&ga->win);
     free(ga->dims);
 
@@ -185,12 +185,12 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld-%ld, single target %ld.%ld\n",
                   ga->g->nid, lo[0], hi[0], tlonid, tloidx);
 
-        MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
+        //MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
         MPI_Get(buf, length, MPI_INT8_T,
                 tlonid, (tloidx * ga->elem_size), length, MPI_INT8_T,
                 ga->win);
-        MPI_Win_unlock(tlonid, ga->win);
-        //MPI_Win_flush_local(tlonid, ga->win);
+        //MPI_Win_unlock(tlonid, ga->win);
+        MPI_Win_flush_local(tlonid, ga->win);
 
         return 0;
     }
@@ -201,11 +201,11 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements from %ld.%ld\n",
               ga->g->nid, n, tlonid, tloidx);
 
-    MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
+    //MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
     MPI_Get(buf, (n * ga->elem_size), MPI_INT8_T,
             tlonid, (tloidx * ga->elem_size), (n * ga->elem_size), MPI_INT8_T,
             ga->win);
-    MPI_Win_unlock(tlonid, ga->win);
+    //MPI_Win_unlock(tlonid, ga->win);
 
     oidx = (n * ga->elem_size);
 
@@ -217,11 +217,11 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements from %ld.%ld\n",
                   ga->g->nid, n, tnid, tidx);
 
-        MPI_Win_lock(MPI_LOCK_SHARED, tnid, 0, ga->win);
+        //MPI_Win_lock(MPI_LOCK_SHARED, tnid, 0, ga->win);
         MPI_Get(&buf[oidx], (n * ga->elem_size), MPI_INT8_T,
                 tnid, 0, (n * ga->elem_size), MPI_INT8_T,
                 ga->win);
-        MPI_Win_unlock(tnid, ga->win);
+        //MPI_Win_unlock(tnid, ga->win);
 
         oidx += (n * ga->elem_size);
     }
@@ -232,12 +232,12 @@ int64_t garray_get(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray getting %ld elements up to %ld.%ld\n",
               ga->g->nid, n, thinid, thiidx);
 
-    MPI_Win_lock(MPI_LOCK_SHARED, thinid, 0, ga->win);
+    //MPI_Win_lock(MPI_LOCK_SHARED, thinid, 0, ga->win);
     MPI_Get(&buf[oidx], (n * ga->elem_size), MPI_INT8_T,
             thinid, 0, (n * ga->elem_size), MPI_INT8_T,
             ga->win);
-    MPI_Win_unlock(thinid, ga->win);
-    //MPI_Win_flush_local_all(ga->win);
+    //MPI_Win_unlock(thinid, ga->win);
+    MPI_Win_flush_local_all(ga->win);
 
     return 0;
 }
@@ -259,12 +259,12 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         LOG_DEBUG(ga->g->glog, "[%d] garray put %ld-%ld, single target %ld.%ld\n",
                   ga->g->nid, lo[0], hi[0], tlonid, tloidx);
 
-        MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tlonid, 0, ga->win);
+        //MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tlonid, 0, ga->win);
         MPI_Put(buf, length, MPI_INT8_T,
                 tlonid, (tloidx * ga->elem_size), length, MPI_INT8_T,
                 ga->win);
-        MPI_Win_unlock(tlonid, ga->win);
-        //MPI_Win_flush(tlonid, ga->win);
+        //MPI_Win_unlock(tlonid, ga->win);
+        MPI_Win_flush(tlonid, ga->win);
 
         return 0;
     }
@@ -275,11 +275,11 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray putting %ld elements into %ld.%ld\n",
               ga->g->nid, n, tlonid, tloidx);
 
-    MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
+    //MPI_Win_lock(MPI_LOCK_SHARED, tlonid, 0, ga->win);
     MPI_Put(buf, length, MPI_INT8_T,
             tlonid, (tloidx * ga->elem_size), (n * ga->elem_size), MPI_INT8_T,
             ga->win);
-    MPI_Win_unlock(tlonid, ga->win);
+    //MPI_Win_unlock(tlonid, ga->win);
 
     oidx = (n*ga->elem_size);
 
@@ -291,11 +291,11 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
         LOG_DEBUG(ga->g->glog, "[%d] garray putting %ld elements into %ld.%ld\n",
                   ga->g->nid, n, tnid, tidx);
 
-        MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tnid, 0, ga->win);
+        //MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tnid, 0, ga->win);
         MPI_Put(&buf[oidx], (n * ga->elem_size), MPI_INT8_T,
                 tnid, 0, (n * ga->elem_size), MPI_INT8_T,
                 ga->win);
-        MPI_Win_unlock(tnid, ga->win);
+        //MPI_Win_unlock(tnid, ga->win);
 
         oidx += (n*ga->elem_size);
     }
@@ -306,12 +306,12 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
     LOG_DEBUG(ga->g->glog, "[%d] garray putting %ld elements up to %ld.%ld\n",
               ga->g->nid, n, thinid, thiidx);
 
-    MPI_Win_lock(MPI_LOCK_EXCLUSIVE, thinid, 0, ga->win);
+    //MPI_Win_lock(MPI_LOCK_EXCLUSIVE, thinid, 0, ga->win);
     MPI_Put(&buf[oidx], (n * ga->elem_size), MPI_INT8_T,
             thinid, 0, (n * ga->elem_size), MPI_INT8_T,
             ga->win);
-    MPI_Win_unlock(thinid, ga->win);
-    //MPI_Win_flush_all(ga->win);
+    //MPI_Win_unlock(thinid, ga->win);
+    MPI_Win_flush_all(ga->win);
 
     return 0;
 }

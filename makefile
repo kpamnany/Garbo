@@ -20,7 +20,7 @@ CFLAGS+=-I./include
 CFLAGS+=-I./src
 
 ifeq ($(CRAY),yes)
-    CFLAGS+=-craympich-mt
+    #CFLAGS+=-craympich-mt
     LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
 else
     CFLAGS+=-mt_mpi
