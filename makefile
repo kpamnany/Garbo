@@ -6,6 +6,7 @@
 #
 
 CRAY?=yes
+INTEL?=no
 
 CC?=cc
 
@@ -22,7 +23,9 @@ CFLAGS+=-I./src
 ifeq ($(CRAY),yes)
     #CFLAGS+=-craympich-mt
     LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
-else
+endif
+
+ifeq ($(INTEL),yes)
     CFLAGS+=-mt_mpi
 endif
 
