@@ -5,10 +5,10 @@
 # 2018.06.01   kiran.pamnany   Initial code
 #
 
+CC=mpicc
+
 CRAY?=yes
 INTEL?=no
-
-CC?=cc
 
 .SUFFIXES: .c .h .o .a
 .PHONY: clean test
@@ -21,11 +21,14 @@ CFLAGS+=-I./include
 CFLAGS+=-I./src
 
 ifeq ($(CRAY),yes)
+    CC=cc
     #CFLAGS+=-craympich-mt
     LDFLAGS+=-Wl,--whole-archive,-ldmapp,--no-whole-archive
+    LDFLAGS+=-Wl,-rpath=/global/u1/k/kpamnany/mpich2-intel/lib
 endif
 
 ifeq ($(INTEL),yes)
+    CC=mpiicc
     CFLAGS+=-mt_mpi
 endif
 

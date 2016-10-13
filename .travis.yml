@@ -1,4 +1,4 @@
-sudio: required
+sudo: required
 dist: trusty
 language: c
 os: linux
