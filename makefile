@@ -7,7 +7,7 @@
 
 CC=mpicc
 
-CRAY?=yes
+CRAY?=no
 INTEL?=no
 
 .SUFFIXES: .c .h .o .a
