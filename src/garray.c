@@ -322,7 +322,7 @@ int64_t garray_put(garray_t *ga, int64_t *lo, int64_t *hi, void *buf_)
 int64_t garray_distribution(garray_t *ga, int64_t nid, int64_t *lo, int64_t *hi)
 {
     if (nid >= ga->g->nnodes) {
-        LOG_DEBUG(ga->g->glog, "[%d] garray distribution requested for node %ld out"
+        LOG_WARN(ga->g->glog, "[%d] garray distribution requested for node %ld out"
                   " of %d nodes\n", ga->g->nid, nid, ga->g->nnodes);
         return -1;
     }
@@ -353,11 +353,18 @@ int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
     garray_distribution(ga, ga->g->nid, mylo, myhi);
 
     int64_t lo_ofs = lo[0]-mylo[0], hi_ofs = hi[0]-myhi[0];
-    if (lo_ofs < 0  ||  hi_ofs > 0)
+    if (lo_ofs < 0  ||  hi_ofs > 0) {
+        LOG_WARN(ga->g->glog, "[%d] garray access requested for invalid range"
+                 " (%ld-%ld, have %ld-%ld)\n", ga->g->nid, lo[0], hi[0],
+                 mylo[0], myhi[0]);
         return -1;
+    }
 
     if (ga->nlocal_elems > 0)
         *buf = &ga->buffer[lo_ofs*ga->elem_size];
+    else
+        LOG_WARN(ga->g->glog, "[%d] garray access requested, but no local"
+                 " elements\n", ga->g->nid);
 
     return 0;
 }
