@@ -365,7 +365,7 @@ int64_t garray_access(garray_t *ga, int64_t *lo, int64_t *hi, void **buf)
     if (ga->nlocal_elems > 0)
         *buf = &ga->buffer[lo_ofs*ga->elem_size];
     else
-        LOG_WARN(ga->g->glog, "[%d] garray access requested, but no local"
+        LOG_INFO(ga->g->glog, "[%d] garray access requested, but no local"
                  " elements\n", ga->g->nid);
 
     return 0;
