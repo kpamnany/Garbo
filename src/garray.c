@@ -55,6 +55,8 @@ int64_t garray_create(garbo_t *g, int64_t ndims, int64_t *dims, int64_t elem_siz
     MPI_Win_allocate(ga->nlocal_elems*elem_size, 1, MPI_INFO_NULL,
             MPI_COMM_WORLD, &ga->buffer, &ga->win);
     MPI_Win_lock_all(MPI_MODE_NOCHECK, ga->win);
+    memset(ga->buffer, 0, ga->nlocal_elems*elem_size);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     *ga_ = ga;
 
