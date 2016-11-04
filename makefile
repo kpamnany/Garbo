@@ -41,7 +41,12 @@ else
     CFLAGS+=-O2
 endif
 
-TARGET=libgarbo.so
+ifeq ($(shell uname), Darwin)
+    TARGET=libgarbo.dylib
+else
+    TARGET=libgarbo.so
+endif
+
 
 all: $(TARGET)
 
@@ -56,4 +61,4 @@ $(TARGET): $(OBJS)
 
 clean:
 	$(MAKE) -C test clean
-	$(RM) -f $(TARGET) $(OBJS) 
+	$(RM) -f $(TARGET) $(OBJS)
